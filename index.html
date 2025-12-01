@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mean Images: Retro Sci-Fi and Horror</title>
+<style>
+  body { font-family: sans-serif; margin: 0; padding: 0; display: flex; flex-direction: column; align-items: center; background: #111; color: #fff; }
+  #gallery { display: flex; flex-wrap: wrap; justify-content: center; margin: 20px 0; gap: 10px; max-width: 90vw; overflow-x: auto; }
+  .thumb { width: 120px; cursor: pointer; border: 2px solid #444; transition: 0.2s; }
+  .thumb.selected { border-color: #f00; transform: scale(1.00); }
+  #canvas-container { border: 2px solid #444; background: #000; margin-bottom: 20px; }
+  #controls { display: flex; gap: 20px; align-items: center; margin-bottom: 20px; }
+  input[type=range] { width: 150px; }
+</style>
+</head>
+<body>
+
+<h1>Mean Images: Retro Sci-Fi and Horror</h1>
+
+<div id="gallery">
+  <!-- Example thumbnails, replace src with your poster images -->
+  <img src="posters/st.jpg" data-src="posters/st.jpg" class="thumb">
+  <img src="posters/elm.webp" data-src="posters/elm.webp" class="thumb">
+  <img src="posters/pet.jpg" data-src="posters/pet.jpg" class="thumb">
+  <img src="posters/back.jpg" data-src="posters/back.jpg" class="thumb">
+  <img src="posters/evildead.jpg" data-src="posters/evildead.jpg" class="thumb">
+  <img src="posters/hell.jpg" data-src="posters/hell.jpg" class="thumb">
+  <img src="posters/fog.jpg" data-src="posters/fog.jpg" class="thumb">
+  <img src="posters/val.jpg" data-src="posters/val.jpg" class="thumb">
+  <img src="posters/reani.jpg" data-src="posters/reani.jpg" class="thumb">
+  <img src="posters/robo.jpg" data-src="posters/robo.jpg" class="thumb">
+  <!-- Add more poster images here -->
+</div>
+
+<div id="canvas-container">
+  <canvas id="blendCanvas" width="800" height="1200"></canvas>
+</div>
+
+<div id="controls">
+  <button id="resetBtn">Reset</button>
+</div>
+
+<script>
+const canvas = document.getElementById('blendCanvas');
+const ctx = canvas.getContext('2d');
+const gallery = document.getElementById('gallery');
+const thumbs = document.querySelectorAll('.thumb');
+let selectedImages = [];
+
+// Select / deselect images
+thumbs.forEach(img => {
+  img.addEventListener('click', () => {
+    const src = img.dataset.src;
+    if (selectedImages.includes(src)) {
+      selectedImages = selectedImages.filter(s => s !== src);
+      img.classList.remove('selected');
+    } else {
+      selectedImages.push(src);
+      img.classList.add('selected');
+    }
+    renderBlend();
+  });
+});
+
+// Blend images using true pixel-average
+function renderBlend() {
+  if (selectedImages.length === 0) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    return;
+  }
+
+  const images = selectedImages.map(src => {
+    const img = new Image();
+    img.src = src;
+    return img;
+  });
+
+  // Wait until all images are loaded
+  Promise.all(images.map(img => new Promise(res => { img.onload = res; })))
+    .then(() => {
+      const offCanvas = document.createElement('canvas');
+      offCanvas.width = canvas.width;
+      offCanvas.height = canvas.height;
+      const offCtx = offCanvas.getContext('2d');
+
+      const imgDataArray = images.map(img => {
+        offCtx.clearRect(0, 0, canvas.width, canvas.height);
+        offCtx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        return offCtx.getImageData(0, 0, canvas.width, canvas.height).data;
+      });
+
+      const result = offCtx.createImageData(canvas.width, canvas.height);
+      const n = images.length;
+
+      for (let i = 0; i < result.data.length; i += 4) {
+        let r = 0, g = 0, b = 0, a = 0;
+        imgDataArray.forEach(data => {
+          r += data[i];
+          g += data[i + 1];
+          b += data[i + 2];
+          a += data[i + 3];
+        });
+        result.data[i] = r / n;
+        result.data[i + 1] = g / n;
+        result.data[i + 2] = b / n;
+        result.data[i + 3] = a / n;
+      }
+
+      // Optionally apply global opacity slider
+      const blendOpacity = 40;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.globalAlpha = blendOpacity;
+      ctx.putImageData(result, 0, 0);
+      ctx.globalAlpha = 1;
+    });
+}
+
+// Reset
+document.getElementById('resetBtn').addEventListener('click', () => {
+  selectedImages = [];
+  thumbs.forEach(t => t.classList.remove('selected'));
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+});
+
+</script>
+
+</body>
+</html>
+
+
+
